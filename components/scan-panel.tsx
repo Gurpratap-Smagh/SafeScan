@@ -649,6 +649,7 @@ export function ChatPanel({ reportId, sessionId, initialMessage }: ChatPanelProp
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const sendLock = useRef(false);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -659,7 +660,8 @@ export function ChatPanel({ reportId, sessionId, initialMessage }: ChatPanelProp
   async function send(e?: React.FormEvent) {
     e?.preventDefault();
     const content = input.trim();
-    if (!content || sending) return;
+    if (!content || sendLock.current) return;
+    sendLock.current = true;
     setInput('');
     setError(null);
     setSending(true);
@@ -678,6 +680,7 @@ export function ChatPanel({ reportId, sessionId, initialMessage }: ChatPanelProp
     } catch {
       setError('Chat request failed');
     } finally {
+      sendLock.current = false;
       setSending(false);
     }
   }
