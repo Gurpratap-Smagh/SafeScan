@@ -519,13 +519,15 @@ function verdictColor(v?: string | null) {
 
 function ScoreCircle({ score }: { score: number }) {
   const color = score >= 75 ? '#00e5b0' : score >= 50 ? '#f5b042' : '#ff5577';
+  const label = score >= 80 ? 'Safe' : score >= 60 ? 'Low risk' : score >= 40 ? 'Moderate' : score >= 20 ? 'High risk' : 'Unsafe';
+  const sub = score >= 80 ? 'for you' : score >= 60 ? 'minor concerns' : score >= 40 ? 'review advised' : score >= 20 ? 'avoid if possible' : 'do not consume';
   return (
     <div
-      className="flex h-24 w-24 flex-col items-center justify-center rounded-full border-4 bg-black/40 shrink-0"
+      className="flex h-24 w-24 flex-col items-center justify-center rounded-full border-4 bg-black/40 shrink-0 text-center px-1"
       style={{ borderColor: color }}
     >
-      <span className="text-3xl font-extrabold" style={{ color }}>{score}</span>
-      <span className="text-[10px] uppercase tracking-wider text-white/50">/ 100</span>
+      <span className="text-base font-extrabold leading-tight" style={{ color }}>{label}</span>
+      <span className="text-[9px] leading-tight text-white/40 mt-0.5">{sub}</span>
     </div>
   );
 }
@@ -580,21 +582,22 @@ export function SafetyReportView({ report }: { report: SafetyReport }) {
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {subscores.map(([label, val, desc]) => {
           const n = val ?? null;
-          const barColor =
-            n == null ? 'bg-white/20' : n >= 75 ? 'bg-[#00e5b0]' : n >= 50 ? 'bg-[#f5b042]' : 'bg-[#ff5577]';
-          const statusLabel =
-            n == null ? '' : n >= 75 ? 'No concerns' : n >= 50 ? 'Moderate risk' : 'High risk';
+          // Risk is inverted: score 100 = no risk, score 0 = maximum risk
+          const risk = n == null ? null : 100 - n;
+          const barColor = n == null ? 'bg-white/20' : n >= 75 ? 'bg-[#00e5b0]' : n >= 50 ? 'bg-[#f5b042]' : 'bg-[#ff5577]';
+          const riskLabel = n == null ? '—' : n >= 80 ? 'None' : n >= 60 ? 'Low' : n >= 40 ? 'Moderate' : n >= 20 ? 'High' : 'Critical';
+          const riskColor = n == null ? 'text-white/40' : n >= 80 ? 'text-[#00e5b0]' : n >= 60 ? 'text-[#7dd3b8]' : n >= 40 ? 'text-[#f5b042]' : 'text-[#ff5577]';
           return (
             <div key={label} className="rounded-xl border border-white/10 bg-black/20 p-3">
               <p className="text-[10px] uppercase tracking-wider text-white/40">{label}</p>
-              <p className="mt-1 text-xl font-bold">{n ?? '—'}</p>
+              <p className={`mt-1 text-lg font-bold ${riskColor}`}>{riskLabel}</p>
               {n != null && (
                 <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
                   <div className={`h-full rounded-full ${barColor}`} style={{ width: `${n}%` }} />
                 </div>
               )}
               <p className="mt-1.5 text-[9px] leading-tight text-white/30">{desc}</p>
-              {n != null && <p className={`text-[9px] font-semibold mt-0.5 ${n >= 75 ? 'text-[#00e5b0]/70' : n >= 50 ? 'text-[#f5b042]/70' : 'text-[#ff5577]/70'}`}>{statusLabel}</p>}
+              {n != null && <p className="text-[9px] text-white/20 mt-0.5">safety {n}/100 · higher = safer</p>}
             </div>
           );
         })}

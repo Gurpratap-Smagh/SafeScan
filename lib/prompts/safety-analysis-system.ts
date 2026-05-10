@@ -22,13 +22,13 @@ The JSON must match this structure exactly:
   "summary": "string, 2-4 sentences for the end user",
   "aiAnalysisSummary": "string, detailed narrative: what risks exist, who is affected, what to watch for, when to see a clinician. Use markdown (bullets, bold) for clarity.",
   "scores": {
-    "overallScore": 0-100,
-    "allergenScore": 0-100,
-    "toxicityScore": 0-100,
-    "recallScore": 0-100,
-    "drugInteractionScore": 0-100,
-    "adverseEventScore": 0-100,
-    "nutritionalScore": 0-100
+    "overallScore": "0-100. Your holistic clinical judgment of how safe this product is for THIS user.",
+    "allergenScore": "0-100. 100 = no allergen overlap found. 0 = known allergen confirmed in ingredients.",
+    "toxicityScore": "0-100. 100 = no toxic compounds, contamination, or heavy metal signals found.",
+    "recallScore": "0-100. 100 = no FDA recalls or enforcement actions found for this product. 0 = active Class I recall.",
+    "drugInteractionScore": "0-100. 100 = no interactions with user's medications detected. 0 = serious interaction found.",
+    "adverseEventScore": "0-100. 100 = zero adverse event reports found in FDA FAERS/CAERS. 0 = many serious reports.",
+    "nutritionalScore": "0-100. 100 = well-balanced nutritional profile. 0 = very poor (excessive sugar/sodium/fat or nutrient-void)."
   },
   "narrativeFields": {
     "knownReactions": "string or empty",
