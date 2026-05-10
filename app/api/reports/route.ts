@@ -20,16 +20,15 @@ import { badRequest } from '../_lib/http';
 const barcodeBody = z
   .object({
     barcode: z.string().min(4).max(40),
+    productName: z.string().min(1).max(200).optional(),
     scanId: z.number().int().positive().optional(),
-  })
-  .strict();
+  });
 
 const nameBody = z
   .object({
     productName: z.string().min(2).max(200),
     scanId: z.number().int().positive().optional(),
-  })
-  .strict();
+  });
 
 const bodySchema = z.union([barcodeBody, nameBody]);
 
@@ -50,7 +49,7 @@ export async function POST(req: Request) {
     try {
       const payload =
         'barcode' in parsed.data
-          ? { userId: caller.id, barcode: parsed.data.barcode, scanId: parsed.data.scanId }
+          ? { userId: caller.id, barcode: parsed.data.barcode, productNameHint: parsed.data.productName, scanId: parsed.data.scanId }
           : { userId: caller.id, productName: parsed.data.productName, scanId: parsed.data.scanId };
 
       const { report, meta } = await orchestrateSafetyReport(payload);

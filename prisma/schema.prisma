@@ -20,44 +20,41 @@ model User {
   deletedAt     DateTime?        @map("deleted_at")
   /// Increment to invalidate all outstanding JWT refresh/access families (logout).
   tokenVersion  Int              @default(0) @map("token_version")
+  chatSessions  ChatSession[]
   notifications Notification[]
   safetyReports SafetyReport[]
   scanHistory   ScanHistory[]
   allergies     UserAllergy[]
   conditions    UserCondition[]
   medications   UserMedication[]
-  chatSessions  ChatSession[]
   memories      UserMemory[]
 
   @@map("users")
 }
 
 model Product {
-  id                       Int       @id @default(autoincrement())
+  id                       Int            @id @default(autoincrement())
   name                     String
   description              String?
+  brand                    String?
+  manufacturer             String?
+  type                     String?
   servingSize              String?
   countryOfOrigin          String?
-  brand                    String? // who makes it
-  manufacturer             String? // who manufactures it
-  barcodeNumber            String?   @unique
-  ingredientList           String?
-  nutritionalInfo          String?
-  imageUrl                 String?
-  type                     String? // Drugs, food, supplement
   /// Last successful external barcode→product resolution (Go-UPC, Barcode Lookup, OFF, etc.)
   lastExternalResolutionAt DateTime?
   /// e.g. upc-database | rapid-barcode | openfoodfacts | merged
   externalResolutionSource String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  scanHistory   ScanHistory[]
-  recalls       Recall[]
-  safetyReports SafetyReport[]
-  notifications Notification[]
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+  barcodeNumber            String?        @unique
+  imageUrl                 String?
+  ingredientList           String?
+  nutritionalInfo          String?
+  notifications            Notification[]
+  recalls                  Recall[]
+  safetyReports            SafetyReport[]
+  scanHistory              ScanHistory[]
 
   @@map("products")
 }
@@ -215,8 +212,8 @@ model ChatSession {
   title     String?
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages  ChatMessage[]
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, updatedAt])
   @@map("chat_sessions")
@@ -250,7 +247,7 @@ model UserMemory {
   createdAt DateTime @default(now()) @map("created_at")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, content], map: "user_memories_user_id_content_key")
+  @@unique([userId, content])
   @@index([userId, createdAt])
   @@map("user_memories")
 }

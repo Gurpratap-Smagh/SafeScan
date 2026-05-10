@@ -35,7 +35,7 @@ import {
 } from '@/lib/reports/prompt-templates';
 
 export type ReportOrchestrationInput =
-  | { userId: number; scanId?: number; barcode: string }
+  | { userId: number; scanId?: number; barcode: string; productNameHint?: string }
   | { userId: number; scanId?: number; productName: string };
 
 export type OrchestrationMeta = {
@@ -200,6 +200,7 @@ export async function orchestrateSafetyReport(
   const trace: string[] = [];
   const isBarcode = 'barcode' in input;
   const barcode = isBarcode ? normalizeBarcode(input.barcode) : null;
+  const productNameHint = isBarcode ? (input.productNameHint?.trim() || null) : null;
   const productNameOnly = !isBarcode ? input.productName.trim() : null;
   const productLookupKey = isBarcode ? barcode! : stableNameKey(productNameOnly!);
 
@@ -294,10 +295,10 @@ export async function orchestrateSafetyReport(
         upcTitle,
         rapidTitle,
         off?.name,
+        productNameHint, // user-supplied hint wins over stale cached name
         existingProduct?.name,
-        // Do NOT fall back to `Product ${barcode}` — return empty so the UI can prompt user for name
       ) ?? '')
-    : (pickNonEmpty(existingProduct?.name, productNameOnly, '') ?? '');
+    : (pickNonEmpty(productNameOnly, existingProduct?.name, '') ?? '');
 
   const brand = isBarcode
     ? pickNonEmpty(upcBrand, rapidBrand, existingProduct?.brand, off?.brand, null)
