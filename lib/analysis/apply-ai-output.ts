@@ -24,6 +24,11 @@ export function buildSafetyReportUpdateFromAi(
 
   const potentialHarms = toPotentialHarmsJson(n.potentialHarms);
 
+  // Fall back to summary if aiAnalysisSummary is empty so the UI panel always renders
+  const finalAnalysisSummary = (aiAnalysisSummary && aiAnalysisSummary.trim())
+    ? aiAnalysisSummary
+    : summary;
+
   return {
     overallScore: scores.overallScore,
     score: scores.overallScore,
@@ -35,7 +40,7 @@ export function buildSafetyReportUpdateFromAi(
     adverseEventScore: scores.adverseEventScore,
     nutritionalScore: scores.nutritionalScore,
     summary,
-    aiAnalysisSummary,
+    aiAnalysisSummary: finalAnalysisSummary,
     knownReactions: n.knownReactions ?? undefined,
     ...(potentialHarms !== undefined ? { potentialHarms } : {}),
     allergenFlags: n.allergenFlags ?? undefined,

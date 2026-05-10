@@ -105,6 +105,41 @@ export async function POST(req: Request) {
 
       const updateData = buildSafetyReportUpdateFromAi(structured);
 
+      // HARD SAFETY OVERRIDE: if the rule-based pipeline detected an allergen
+      // match in the ingredients (existing.allergenFlags is non-empty), the AI
+      // MUST NOT be allowed to call this product safe. Force allergen and
+      // overall scores to dangerous levels regardless of what the model said.
+      const ruleBasedAllergenFlags = (existing.allergenFlags ?? '').trim();
+      const ruleBasedAllergenScore = existing.allergenScore ?? 100;
+      const allergenDetected = ruleBasedAllergenFlags.length > 0 || ruleBasedAllergenScore <= 25;
+
+      if (allergenDetected) {
+        // Cap allergen and overall scores
+        const cappedAllergen = Math.min(structured.scores.allergenScore, 15);
+        const cappedOverall = Math.min(structured.scores.overallScore, 25);
+        updateData.allergenScore = cappedAllergen;
+        updateData.overallScore = cappedOverall;
+        updateData.score = cappedOverall;
+        updateData.severityLevel = 'critical';
+        updateData.verdict = verdictFromScore(cappedOverall) ?? 'Unsafe';
+        // Preserve the rule-based allergen flags so UI shows the matches
+        if (ruleBasedAllergenFlags) {
+          updateData.allergenFlags = ruleBasedAllergenFlags;
+        }
+        // Force a clear danger message so UI never shows "Safe" by mistake
+        const dangerNotice = `**⚠ CRITICAL ALLERGEN ALERT:** This product contains **${ruleBasedAllergenFlags || 'an allergen'}** which matches your declared allergies. Consuming it may cause a severe or life-threatening allergic reaction (including anaphylaxis). **Do not consume this product.** Consult your physician or allergist if you have questions.`;
+        const existingAnalysis = (structured.aiAnalysisSummary ?? '').trim();
+        updateData.aiAnalysisSummary = existingAnalysis
+          ? `${dangerNotice}\n\n---\n\n${existingAnalysis}`
+          : dangerNotice;
+        updateData.summary = `⚠ Contains ${ruleBasedAllergenFlags || 'a known allergen'} — do not consume.`;
+        // Also reflect into the structured response for the API caller
+        structured.scores.allergenScore = cappedAllergen;
+        structured.scores.overallScore = cappedOverall;
+        structured.aiAnalysisSummary = updateData.aiAnalysisSummary as string;
+        if (structured.outcome) structured.outcome.severityLevel = 'critical';
+      }
+
       const updated = await prisma.safetyReport.update({
         where: { id: reportId },
         data: updateData,
