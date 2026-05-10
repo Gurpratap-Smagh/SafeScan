@@ -186,8 +186,6 @@ export function formatContextAsPromptPrefix(ctx: ChatContext): string {
         if (r.nutritionalSummary) parts.push(`- Detail: ${r.nutritionalSummary.slice(0, 500)}`);
         if (r.nutritionalFlags) parts.push(`- Health labels: ${r.nutritionalFlags.slice(0, 300)}`);
         if (r.dailyValueWarnings) parts.push(`- DV warnings: ${r.dailyValueWarnings}`);
-      } else {
-        parts.push('\n### Nutritional data: not available from APIs for this product.');
       }
 
       // --- FDA data (ALWAYS emitted) ---

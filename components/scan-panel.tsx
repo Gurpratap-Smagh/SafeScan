@@ -592,7 +592,8 @@ export function SafetyReportView({ report }: { report: SafetyReport }) {
     if (report.calories != null) parts.push(`${report.calories} kcal`);
     if (report.sugarLevel) parts.push(`sugar: ${report.sugarLevel}`);
     if (report.sodiumLevel) parts.push(`sodium: ${report.sodiumLevel}`);
-    return parts.length ? parts.slice(0, 2).join(' · ') : 'no data';
+    if (report.saturatedFatLevel) parts.push(`fat: ${report.saturatedFatLevel}`);
+    return parts.length ? parts.slice(0, 2).join(' · ') : 'sugar · sodium · calories';
   })();
 
   type SubScore = {
