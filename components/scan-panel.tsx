@@ -539,13 +539,13 @@ export function SafetyReportView({ report }: { report: SafetyReport }) {
         : report.productName!
       : report.product!.name!;
 
-  const subscores: Array<[string, number | null | undefined]> = [
-    ['Allergens', report.allergenScore],
-    ['Toxicity', report.toxicityScore],
-    ['Recalls', report.recallScore],
-    ['Drug Interactions', report.drugInteractionScore],
-    ['Adverse Events', report.adverseEventScore],
-    ['Nutrition', report.nutritionalScore],
+  const subscores: Array<[string, number | null | undefined, string]> = [
+    ['Allergens', report.allergenScore, 'Allergen match vs your profile'],
+    ['Toxicity', report.toxicityScore, 'Toxic compounds & contaminants'],
+    ['Recalls', report.recallScore, 'FDA recall & enforcement history'],
+    ['Drug Interactions', report.drugInteractionScore, 'Conflicts with your medications'],
+    ['Adverse Events', report.adverseEventScore, 'FAERS / CAERS adverse reports'],
+    ['Nutrition', report.nutritionalScore, 'Sugar, sodium & nutrient balance'],
   ];
 
   return (
@@ -571,10 +571,12 @@ export function SafetyReportView({ report }: { report: SafetyReport }) {
       )}
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {subscores.map(([label, val]) => {
+        {subscores.map(([label, val, desc]) => {
           const n = val ?? null;
           const barColor =
             n == null ? 'bg-white/20' : n >= 75 ? 'bg-[#00e5b0]' : n >= 50 ? 'bg-[#f5b042]' : 'bg-[#ff5577]';
+          const statusLabel =
+            n == null ? '' : n >= 75 ? 'No concerns' : n >= 50 ? 'Moderate risk' : 'High risk';
           return (
             <div key={label} className="rounded-xl border border-white/10 bg-black/20 p-3">
               <p className="text-[10px] uppercase tracking-wider text-white/40">{label}</p>
@@ -584,6 +586,8 @@ export function SafetyReportView({ report }: { report: SafetyReport }) {
                   <div className={`h-full rounded-full ${barColor}`} style={{ width: `${n}%` }} />
                 </div>
               )}
+              <p className="mt-1.5 text-[9px] leading-tight text-white/30">{desc}</p>
+              {n != null && <p className={`text-[9px] font-semibold mt-0.5 ${n >= 75 ? 'text-[#00e5b0]/70' : n >= 50 ? 'text-[#f5b042]/70' : 'text-[#ff5577]/70'}`}>{statusLabel}</p>}
             </div>
           );
         })}

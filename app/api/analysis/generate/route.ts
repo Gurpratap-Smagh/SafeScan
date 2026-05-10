@@ -111,6 +111,18 @@ export async function POST(req: Request) {
         include: { product: true },
       });
 
+      // If AI returned a better product name, persist it
+      if (structured.productName && existing.product?.id) {
+        const aiName = structured.productName.trim();
+        if (aiName && aiName.toLowerCase() !== 'unknown product' && aiName.toLowerCase() !== 'unknown') {
+          await prisma.product.update({
+            where: { id: existing.product.id },
+            data: { name: aiName },
+          });
+          if (updated.product) updated.product.name = aiName;
+        }
+      }
+
       if (updated.scanId != null) {
         const v = verdictFromScore(structured.scores.overallScore);
         await prisma.scanHistory.update({

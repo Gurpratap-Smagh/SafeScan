@@ -14,56 +14,6 @@ function formatMedication(m: UserMedication): string {
   return [name, m.dosage, m.frequency].filter(Boolean).join(' | ');
 }
 
-function reportSnapshotJson(report: SafetyReport): Record<string, unknown> {
-  return {
-    id: report.id,
-    userId: report.userId,
-    productId: report.productId,
-    scanId: report.scanId,
-    overallScore: report.overallScore,
-    allergenScore: report.allergenScore,
-    toxicityScore: report.toxicityScore,
-    recallScore: report.recallScore,
-    drugInteractionScore: report.drugInteractionScore,
-    adverseEventScore: report.adverseEventScore,
-    knownReactions: report.knownReactions,
-    potentialHarms: report.potentialHarms,
-    allergenFlags: report.allergenFlags,
-    drugFlags: report.drugFlags,
-    toxicityFlags: report.toxicityFlags,
-    severityLevel: report.severityLevel,
-    isPersonalized: report.isPersonalized,
-    fdaReportCount: report.fdaReportCount,
-    fdaReactionSummary: report.fdaReactionSummary,
-    nutritionalScore: report.nutritionalScore,
-    calories: report.calories,
-    sugarLevel: report.sugarLevel,
-    sodiumLevel: report.sodiumLevel,
-    saturatedFatLevel: report.saturatedFatLevel,
-    proteinLevel: report.proteinLevel,
-    fiberLevel: report.fiberLevel,
-    nutritionalFlags: report.nutritionalFlags,
-    nutritionalSummary: report.nutritionalSummary,
-    dailyValueWarnings: report.dailyValueWarnings,
-    conditionFlags: report.conditionFlags,
-    reportDate: report.reportDate,
-  };
-}
-
-function productSnapshot(product: Product | null): Record<string, unknown> | null {
-  if (!product) return null;
-  return {
-    name: product.name,
-    brand: product.brand,
-    type: product.type,
-    barcodeNumber: product.barcodeNumber,
-    ingredientList: product.ingredientList,
-    description: product.description,
-    manufacturer: product.manufacturer,
-    nutritionalInfo: product.nutritionalInfo,
-  };
-}
-
 export function buildSafetyAnalysisUserPrompt(input: {
   user: User;
   allergies: UserAllergy[];
@@ -74,42 +24,137 @@ export function buildSafetyAnalysisUserPrompt(input: {
 }): string {
   const { user, allergies, conditions, medications, report, product } = input;
 
-  const healthBlock = [
-    `Profile: name=${user.name}, country=${user.country ?? 'unknown'}, age=${user.age ?? 'unknown'}`,
-    '',
-    'ALLERGIES (review every ingredient against these):',
-    allergies.length
-      ? allergies.map((a) => `- ${formatAllergy(a)}`).join('\n')
-      : '- none recorded',
-    '',
-    'CONDITIONS:',
-    conditions.length
-      ? conditions.map((c) => `- ${formatCondition(c)}`).join('\n')
-      : '- none recorded',
-    '',
-    'MEDICATIONS (check interactions with product type / ingredients / label):',
-    medications.length
-      ? medications.map((m) => `- ${formatMedication(m)}`).join('\n')
-      : '- none recorded',
-  ].join('\n');
+  const lines: string[] = [];
 
-  const reportBlock = JSON.stringify(
-    {
-      currentSafetyReport: reportSnapshotJson(report),
-      product: productSnapshot(product),
-    },
-    null,
-    2,
-  );
+  // --- User profile ---
+  lines.push('## USER PROFILE');
+  lines.push(`Name: ${user.name}`);
+  if (user.country) lines.push(`Country: ${user.country}`);
+  if (user.age != null) lines.push(`Age: ${user.age}`);
+  lines.push('');
 
-  return [
-    'TASK: Re-evaluate this safety report for THIS USER ONLY. Adjust scores and narrative fields to reflect their allergies, conditions, and medications.',
-    '',
-    healthBlock,
-    '',
-    'DATA (existing pipeline output — you may refine scores and text):',
-    reportBlock,
-    '',
-    'Respond only with the fenced JSON described in the system message.',
-  ].join('\n');
+  lines.push('### Allergies (cross-reference every ingredient against this list):');
+  if (allergies.length) {
+    allergies.forEach((a) => lines.push(`- ${formatAllergy(a)}`));
+  } else {
+    lines.push('- none recorded');
+  }
+  lines.push('');
+
+  lines.push('### Medical Conditions:');
+  if (conditions.length) {
+    conditions.forEach((c) => lines.push(`- ${formatCondition(c)}`));
+  } else {
+    lines.push('- none recorded');
+  }
+  lines.push('');
+
+  lines.push('### Current Medications (check for interactions):');
+  if (medications.length) {
+    medications.forEach((m) => lines.push(`- ${formatMedication(m)}`));
+  } else {
+    lines.push('- none recorded');
+  }
+  lines.push('');
+
+  // --- Product identity ---
+  lines.push('## PRODUCT DATA (from barcode lookups, OpenFoodFacts, UPC databases)');
+  const prodName = product?.name ?? 'Unknown';
+  const brand = product?.brand;
+  const manufacturer = product?.manufacturer;
+  lines.push(`Current name on file: ${prodName}`);
+  if (brand) lines.push(`Brand: ${brand}`);
+  if (manufacturer) lines.push(`Manufacturer: ${manufacturer}`);
+  if (product?.type) lines.push(`Category: ${product.type}`);
+  if (product?.barcodeNumber) lines.push(`Barcode: ${product.barcodeNumber}`);
+  if (product?.description) lines.push(`Description: ${product.description}`);
+  lines.push('');
+
+  // --- Full ingredient list ---
+  lines.push('### Ingredient List (FULL — analyze every item against user allergies/conditions/meds):');
+  if (product?.ingredientList) {
+    lines.push(product.ingredientList.slice(0, 3000));
+  } else {
+    lines.push('(not available)');
+  }
+  lines.push('');
+
+  // --- Nutritional data ---
+  lines.push('### Nutritional Data (from API Ninjas, Edamam, OpenFoodFacts):');
+  const hasNutrition = report.calories != null || report.sugarLevel || report.sodiumLevel || product?.nutritionalInfo;
+  if (hasNutrition) {
+    if (report.calories != null) lines.push(`Calories: ${report.calories}`);
+    if (report.sugarLevel) lines.push(`Sugar level: ${report.sugarLevel}`);
+    if (report.sodiumLevel) lines.push(`Sodium level: ${report.sodiumLevel}`);
+    if (report.saturatedFatLevel) lines.push(`Saturated fat level: ${report.saturatedFatLevel}`);
+    if (report.proteinLevel) lines.push(`Protein level: ${report.proteinLevel}`);
+    if (report.fiberLevel) lines.push(`Fiber level: ${report.fiberLevel}`);
+    if (report.nutritionalSummary) lines.push(`Raw nutrition data: ${report.nutritionalSummary}`);
+    if (product?.nutritionalInfo) {
+      const nutJson = typeof product.nutritionalInfo === 'string'
+        ? product.nutritionalInfo
+        : JSON.stringify(product.nutritionalInfo);
+      lines.push(`Nutriments JSON: ${nutJson.slice(0, 1500)}`);
+    }
+    if (report.nutritionalFlags) lines.push(`Edamam health labels: ${report.nutritionalFlags}`);
+    if (report.dailyValueWarnings) lines.push(`Daily value warnings: ${report.dailyValueWarnings}`);
+  } else {
+    lines.push('(not available)');
+  }
+  lines.push('');
+
+  // --- FDA recalls ---
+  lines.push('### FDA Recalls and Enforcement Actions:');
+  if (report.potentialHarms) {
+    const harms = typeof report.potentialHarms === 'string'
+      ? report.potentialHarms
+      : JSON.stringify(report.potentialHarms);
+    lines.push(harms.slice(0, 2000));
+  } else {
+    lines.push('(none returned by FDA search)');
+  }
+  lines.push('');
+
+  // --- FDA adverse events ---
+  lines.push('### FDA Adverse Event Reports (FAERS + CAERS):');
+  if (report.fdaReactionSummary) {
+    lines.push(report.fdaReactionSummary);
+  } else {
+    lines.push('(none returned)');
+  }
+  if (report.fdaReportCount != null) {
+    lines.push(`Total adverse reports matched: ${report.fdaReportCount}`);
+  }
+  lines.push('');
+
+  // --- Drug interaction data ---
+  if (report.drugFlags) {
+    lines.push('### Drug/Medication Interaction Data:');
+    lines.push(report.drugFlags);
+    lines.push('');
+  }
+
+  // --- Toxicity signals ---
+  if (report.toxicityFlags) {
+    lines.push('### Toxicity Flags (from ingredients + news):');
+    lines.push(report.toxicityFlags);
+    lines.push('');
+  }
+
+  // --- Known reactions ---
+  if (report.knownReactions) {
+    lines.push('### Known Reactions from Adverse Databases:');
+    lines.push(report.knownReactions);
+    lines.push('');
+  }
+
+  lines.push('---');
+  lines.push('TASK: Using ALL of the above data, produce a comprehensive, personalized safety analysis for this specific user.');
+  lines.push('- Derive all scores yourself from the raw data — do NOT copy prior scores.');
+  lines.push('- Set productName to the most accurate human-readable name (brand + product name when available).');
+  lines.push('- Apply the CRITICAL ALLERGEN RULE from the system prompt without exception.');
+  lines.push('- Tailor every score and narrative field to this user\'s allergies, conditions, and medications.');
+  lines.push('Respond only with the fenced JSON described in the system message.');
+
+  return lines.join('\n');
 }

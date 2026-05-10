@@ -19,6 +19,7 @@ const outcomeSchema = z.object({
 });
 
 export const safetyAiOutputSchema = z.object({
+  productName: z.string().optional(),
   summary: z.string(),
   aiAnalysisSummary: z.string(),
   scores: z.object({

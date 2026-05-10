@@ -101,15 +101,53 @@ export function formatContextAsPromptPrefix(ctx: ChatContext): string {
       if (r.allergenFlags) parts.push(`- Allergen flags: ${r.allergenFlags}`);
       if (r.drugFlags) parts.push(`- Drug interaction flags: ${r.drugFlags}`);
       if (r.toxicityFlags) parts.push(`- Toxicity flags: ${r.toxicityFlags}`);
-      if (r.nutritionalSummary) parts.push(`- Nutritional summary: ${r.nutritionalSummary}`);
-      if (r.aiAnalysisSummary) parts.push(`- AI analysis: ${r.aiAnalysisSummary}`);
-      if (r.summary) parts.push(`- Summary: ${r.summary}`);
-      if (r.product?.ingredientList) {
-        const ing = r.product.ingredientList.length > 800
-          ? r.product.ingredientList.slice(0, 800) + '…'
-          : r.product.ingredientList;
-        parts.push(`- Ingredients: ${ing}`);
+      if (r.conditionFlags) parts.push(`- Condition flags: ${r.conditionFlags}`);
+      if (r.aiAnalysisSummary) parts.push(`\n### AI Analysis:\n${r.aiAnalysisSummary}`);
+      if (r.summary) parts.push(`\n### Summary:\n${r.summary}`);
+      // Nutritional data
+      const hasNutrition = r.calories != null || r.sugarLevel || r.sodiumLevel;
+      if (hasNutrition) {
+        parts.push('\n### Nutritional data:');
+        if (r.calories != null) parts.push(`- Calories: ${r.calories}`);
+        if (r.sugarLevel) parts.push(`- Sugar: ${r.sugarLevel}`);
+        if (r.sodiumLevel) parts.push(`- Sodium: ${r.sodiumLevel}`);
+        if (r.saturatedFatLevel) parts.push(`- Saturated fat: ${r.saturatedFatLevel}`);
+        if (r.proteinLevel) parts.push(`- Protein: ${r.proteinLevel}`);
+        if (r.fiberLevel) parts.push(`- Fiber: ${r.fiberLevel}`);
+        if (r.nutritionalSummary) parts.push(`- Detail: ${r.nutritionalSummary.slice(0, 500)}`);
+        if (r.nutritionalFlags) parts.push(`- Health labels: ${r.nutritionalFlags.slice(0, 300)}`);
+        if (r.dailyValueWarnings) parts.push(`- DV warnings: ${r.dailyValueWarnings}`);
+        if (r.nutritionalScore != null) parts.push(`- Nutritional score: ${r.nutritionalScore}/100`);
       }
+      // FDA data
+      if (r.fdaReactionSummary || r.fdaReportCount) {
+        parts.push('\n### FDA adverse events:');
+        if (r.fdaReportCount != null) parts.push(`- Total adverse reports: ${r.fdaReportCount}`);
+        if (r.fdaReactionSummary) parts.push(`- Summary: ${r.fdaReactionSummary.slice(0, 800)}`);
+      }
+      if (r.potentialHarms) {
+        const harms = typeof r.potentialHarms === 'string'
+          ? r.potentialHarms
+          : JSON.stringify(r.potentialHarms);
+        if (harms.trim()) parts.push(`\n### Recalls / potential harms:\n${harms.slice(0, 1000)}`);
+      }
+      if (r.knownReactions) parts.push(`\n### Known reactions:\n${r.knownReactions.slice(0, 500)}`);
+      // Sub-scores
+      parts.push('\n### Sub-scores:');
+      if (r.allergenScore != null) parts.push(`- Allergen: ${r.allergenScore}/100`);
+      if (r.toxicityScore != null) parts.push(`- Toxicity: ${r.toxicityScore}/100`);
+      if (r.recallScore != null) parts.push(`- Recall: ${r.recallScore}/100`);
+      if (r.drugInteractionScore != null) parts.push(`- Drug interaction: ${r.drugInteractionScore}/100`);
+      if (r.adverseEventScore != null) parts.push(`- Adverse events: ${r.adverseEventScore}/100`);
+      // Full ingredient list
+      if (r.product?.ingredientList) {
+        const ing = r.product.ingredientList.length > 1200
+          ? r.product.ingredientList.slice(0, 1200) + '…'
+          : r.product.ingredientList;
+        parts.push(`\n### Full Ingredient List:\n${ing}`);
+      }
+      if (r.product?.brand) parts.push(`- Brand: ${r.product.brand}`);
+      if (r.product?.barcodeNumber) parts.push(`- Barcode: ${r.product.barcodeNumber}`);
     }
   }
 

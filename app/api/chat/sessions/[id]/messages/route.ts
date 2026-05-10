@@ -22,7 +22,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth/proxy';
-import { featherlessChat } from '@/lib/integrations/featherless';
+import { aiChat } from '@/lib/integrations/ai-chat';
 import { buildChatContext, formatContextAsPromptPrefix } from '@/lib/chat/context-builder';
 import { extractAndSaveMemories } from '@/lib/chat/memory-extraction';
 import { CHAT_SYSTEM_PROMPT } from '@/lib/chat/system-prompt';
@@ -62,9 +62,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (!parsed.success) return validationError(parsed.error.issues);
     const { content, reports = [] } = parsed.data;
 
-    if (!process.env.FEATHERLESS_API_KEY) {
+    if (!process.env.FEATHERLESS_API_KEY && (!process.env.WATSONX_API_KEY || !process.env.WATSONX_PROJECT_ID)) {
       return NextResponse.json(
-        { error: 'FEATHERLESS_API_KEY is not set on the server' },
+        { error: 'No AI provider configured (set WATSONX_API_KEY + WATSONX_PROJECT_ID or FEATHERLESS_API_KEY)' },
         { status: 500 },
       );
     }
@@ -104,7 +104,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     let assistantContent: string;
     try {
-      assistantContent = await featherlessChat({
+      assistantContent = await aiChat({
         messages,
         temperature: 0.4,
         maxTokens: 1024,
