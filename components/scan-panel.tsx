@@ -10,7 +10,7 @@ export type Category = 'Food' | 'Medication' | 'Supplement';
 export type SafetyReport = {
   id: number;
   productName?: string | null;
-  product?: { name?: string | null } | null;
+  product?: { name?: string | null; ingredientList?: string | null } | null;
   score?: number | null;
   overallScore?: number | null;
   verdict?: string | null;
@@ -27,6 +27,16 @@ export type SafetyReport = {
   drugFlags?: string | null;
   toxicityFlags?: string | null;
   nutritionalSummary?: string | null;
+  fdaReportCount?: number | null;
+  fdaReactionSummary?: string | null;
+  potentialHarms?: unknown;
+  calories?: number | null;
+  sugarLevel?: string | null;
+  sodiumLevel?: string | null;
+  saturatedFatLevel?: string | null;
+  proteinLevel?: string | null;
+  fiberLevel?: string | null;
+  knownReactions?: string | null;
 };
 
 export type ChatMsg = { role: 'user' | 'assistant'; content: string };
@@ -541,13 +551,87 @@ export function SafetyReportView({ report }: { report: SafetyReport }) {
         : report.productName!
       : report.product!.name!;
 
-  const subscores: Array<[string, number | null | undefined, string]> = [
-    ['Allergens', report.allergenScore, 'Allergen match vs your profile'],
-    ['Toxicity', report.toxicityScore, 'Toxic compounds & contaminants'],
-    ['Recalls', report.recallScore, 'FDA recall & enforcement history'],
-    ['Drug Interactions', report.drugInteractionScore, 'Conflicts with your medications'],
-    ['Adverse Events', report.adverseEventScore, 'FAERS / CAERS adverse reports'],
-    ['Nutrition', report.nutritionalScore, 'Sugar, sodium & nutrient balance'],
+  // --- Derive real stats from API-backed report fields ---
+  const allergenList = (report.allergenFlags ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const allergenCount = allergenList.length;
+
+  // potentialHarms is JSON or string with one recall per line
+  const harmsRaw = report.potentialHarms;
+  const harmsText = typeof harmsRaw === 'string'
+    ? harmsRaw
+    : harmsRaw && typeof harmsRaw === 'object'
+      ? JSON.stringify(harmsRaw)
+      : '';
+  const recallLines = harmsText.split('\n').map((s) => s.trim()).filter((s) => s && s.startsWith('['));
+  const recallCount = recallLines.length;
+
+  const drugFlagText = (report.drugFlags ?? '').trim();
+  const hasDrugConflict = drugFlagText.length > 0 && (report.drugInteractionScore ?? 100) < 90;
+
+  const toxicityFlagText = (report.toxicityFlags ?? '').trim();
+  const hasToxicitySignal = toxicityFlagText.length > 0 && (report.toxicityScore ?? 100) < 90;
+
+  const adverseCount = report.fdaReportCount ?? 0;
+
+  const nutritionStat = (() => {
+    const parts: string[] = [];
+    if (report.calories != null) parts.push(`${report.calories} kcal`);
+    if (report.sugarLevel) parts.push(`sugar: ${report.sugarLevel}`);
+    if (report.sodiumLevel) parts.push(`sodium: ${report.sodiumLevel}`);
+    return parts.length ? parts.slice(0, 2).join(' · ') : 'no data';
+  })();
+
+  type SubScore = {
+    label: string;
+    score: number | null | undefined;
+    primaryStat: string;
+    desc: string;
+  };
+
+  const subscores: SubScore[] = [
+    {
+      label: 'Allergens',
+      score: report.allergenScore,
+      primaryStat: allergenCount > 0
+        ? `${allergenCount} match${allergenCount > 1 ? 'es' : ''}`
+        : '0 matches',
+      desc: allergenCount > 0
+        ? allergenList.slice(0, 2).join(', ')
+        : 'vs your profile',
+    },
+    {
+      label: 'Toxicity',
+      score: report.toxicityScore,
+      primaryStat: hasToxicitySignal ? 'Signals found' : 'No signals',
+      desc: 'contaminants / heavy metals',
+    },
+    {
+      label: 'Recalls',
+      score: report.recallScore,
+      primaryStat: `${recallCount} recall${recallCount === 1 ? '' : 's'}`,
+      desc: 'FDA enforcement records',
+    },
+    {
+      label: 'Drug Interactions',
+      score: report.drugInteractionScore,
+      primaryStat: hasDrugConflict ? 'Conflict found' : '0 conflicts',
+      desc: 'vs your medications',
+    },
+    {
+      label: 'Adverse Events',
+      score: report.adverseEventScore,
+      primaryStat: `${adverseCount} report${adverseCount === 1 ? '' : 's'}`,
+      desc: 'FDA FAERS / CAERS',
+    },
+    {
+      label: 'Nutrition',
+      score: report.nutritionalScore,
+      primaryStat: nutritionStat,
+      desc: 'sugar / sodium / calories',
+    },
   ];
 
   return (
@@ -580,24 +664,21 @@ export function SafetyReportView({ report }: { report: SafetyReport }) {
       )}
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {subscores.map(([label, val, desc]) => {
+        {subscores.map(({ label, score: val, primaryStat, desc }) => {
           const n = val ?? null;
-          // Risk is inverted: score 100 = no risk, score 0 = maximum risk
-          const risk = n == null ? null : 100 - n;
           const barColor = n == null ? 'bg-white/20' : n >= 75 ? 'bg-[#00e5b0]' : n >= 50 ? 'bg-[#f5b042]' : 'bg-[#ff5577]';
-          const riskLabel = n == null ? '—' : n >= 80 ? 'None' : n >= 60 ? 'Low' : n >= 40 ? 'Moderate' : n >= 20 ? 'High' : 'Critical';
-          const riskColor = n == null ? 'text-white/40' : n >= 80 ? 'text-[#00e5b0]' : n >= 60 ? 'text-[#7dd3b8]' : n >= 40 ? 'text-[#f5b042]' : 'text-[#ff5577]';
+          const statColor = n == null ? 'text-white/40' : n >= 75 ? 'text-[#00e5b0]' : n >= 50 ? 'text-[#f5b042]' : 'text-[#ff5577]';
           return (
             <div key={label} className="rounded-xl border border-white/10 bg-black/20 p-3">
               <p className="text-[10px] uppercase tracking-wider text-white/40">{label}</p>
-              <p className={`mt-1 text-lg font-bold ${riskColor}`}>{riskLabel}</p>
+              <p className={`mt-1 text-base font-bold leading-tight ${statColor}`}>{primaryStat}</p>
+              <p className="text-[9px] text-white/40 leading-tight mt-0.5">{desc}</p>
               {n != null && (
                 <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
                   <div className={`h-full rounded-full ${barColor}`} style={{ width: `${n}%` }} />
                 </div>
               )}
-              <p className="mt-1.5 text-[9px] leading-tight text-white/30">{desc}</p>
-              {n != null && <p className="text-[9px] text-white/20 mt-0.5">safety {n}/100 · higher = safer</p>}
+              {n != null && <p className="text-[9px] text-white/30 mt-1">safety {n}/100</p>}
             </div>
           );
         })}

@@ -119,18 +119,27 @@ export function formatContextAsPromptPrefix(ctx: ChatContext): string {
         if (r.dailyValueWarnings) parts.push(`- DV warnings: ${r.dailyValueWarnings}`);
         if (r.nutritionalScore != null) parts.push(`- Nutritional score: ${r.nutritionalScore}/100`);
       }
-      // FDA data
-      if (r.fdaReactionSummary || r.fdaReportCount) {
-        parts.push('\n### FDA adverse events:');
-        if (r.fdaReportCount != null) parts.push(`- Total adverse reports: ${r.fdaReportCount}`);
-        if (r.fdaReactionSummary) parts.push(`- Summary: ${r.fdaReactionSummary.slice(0, 800)}`);
-      }
-      if (r.potentialHarms) {
-        const harms = typeof r.potentialHarms === 'string'
+      // FDA data — ALWAYS emitted so AI never claims "I don't have access".
+      // A score of 100 with no summary means "search ran, 0 results found".
+      parts.push('\n### FDA adverse events (FAERS / CAERS):');
+      const adverseCount = r.fdaReportCount ?? 0;
+      parts.push(`- Reports matched: ${adverseCount}`);
+      if (r.fdaReactionSummary) parts.push(`- Summary: ${r.fdaReactionSummary.slice(0, 800)}`);
+      else if (adverseCount === 0) parts.push('- (FDA search ran and returned 0 adverse reports for this product)');
+
+      // Recalls — count from potentialHarms text
+      parts.push('\n### FDA recalls / enforcement:');
+      const harmsText = r.potentialHarms
+        ? typeof r.potentialHarms === 'string'
           ? r.potentialHarms
-          : JSON.stringify(r.potentialHarms);
-        if (harms.trim()) parts.push(`\n### Recalls / potential harms:\n${harms.slice(0, 1000)}`);
-      }
+          : JSON.stringify(r.potentialHarms)
+        : '';
+      const recallLines = harmsText.split('\n').map((s) => s.trim()).filter((s) => s.startsWith('['));
+      const recallCount = recallLines.length;
+      parts.push(`- Recalls matched: ${recallCount}`);
+      if (recallCount > 0) parts.push(`- Detail:\n${harmsText.slice(0, 1000)}`);
+      else parts.push('- (FDA recall search ran and returned 0 enforcement actions for this product)');
+
       if (r.knownReactions) parts.push(`\n### Known reactions:\n${r.knownReactions.slice(0, 500)}`);
       // Sub-scores
       parts.push('\n### Sub-scores:');
