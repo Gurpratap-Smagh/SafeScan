@@ -568,11 +568,22 @@ export function SafetyReportView({ report }: { report: SafetyReport }) {
   const recallLines = harmsText.split('\n').map((s) => s.trim()).filter((s) => s && s.startsWith('['));
   const recallCount = recallLines.length;
 
+  // Count distinct ingredients (rough — split on common separators)
+  const ingredientCount = report.product?.ingredientList
+    ? report.product.ingredientList
+        .split(/[,;()\[\]\n]/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 1 && s.length < 60).length
+    : 0;
+
   const drugFlagText = (report.drugFlags ?? '').trim();
-  const hasDrugConflict = drugFlagText.length > 0 && (report.drugInteractionScore ?? 100) < 90;
+  const hasDrugConflict = drugFlagText.length > 0 && (report.drugInteractionScore ?? 100) < 80;
 
   const toxicityFlagText = (report.toxicityFlags ?? '').trim();
-  const hasToxicitySignal = toxicityFlagText.length > 0 && (report.toxicityScore ?? 100) < 90;
+  // Count toxicity keywords found (heuristic from flag text)
+  const toxicitySignalCount = toxicityFlagText
+    ? toxicityFlagText.split(/[,.;|]/).map((s) => s.trim()).filter(Boolean).length
+    : 0;
 
   const adverseCount = report.fdaReportCount ?? 0;
 
@@ -605,7 +616,9 @@ export function SafetyReportView({ report }: { report: SafetyReport }) {
     {
       label: 'Toxicity',
       score: report.toxicityScore,
-      primaryStat: hasToxicitySignal ? 'Signals found' : 'No signals',
+      primaryStat: ingredientCount > 0
+        ? `${toxicitySignalCount}/${ingredientCount} flagged`
+        : toxicitySignalCount > 0 ? `${toxicitySignalCount} signals` : '0 flagged',
       desc: 'contaminants / heavy metals',
     },
     {
@@ -678,7 +691,6 @@ export function SafetyReportView({ report }: { report: SafetyReport }) {
                   <div className={`h-full rounded-full ${barColor}`} style={{ width: `${n}%` }} />
                 </div>
               )}
-              {n != null && <p className="text-[9px] text-white/30 mt-1">safety {n}/100</p>}
             </div>
           );
         })}

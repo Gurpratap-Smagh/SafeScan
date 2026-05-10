@@ -11,6 +11,7 @@ Rules:
 - Derive ALL scores yourself from the raw data provided. Ignore any pre-computed scores in the input — they are just hints.
 - Scores represent how safe this product is FOR THIS SPECIFIC USER, not a generic product rating. A product that is fine for most people may score 0 for a user with a matching allergen.
 - CRITICAL ALLERGEN RULE: If the user lists an allergen AND that allergen (or a derivative) appears in the product ingredients, allergenScore MUST be ≤25. An allergen present = potential medical emergency for this user.
+- MISSING DATA RULE: If a dimension has no input data (e.g. no nutritional values returned by APIs, no FDA recalls because the search ran but found nothing), score it neutrally (~70-85), NOT 0. A score of 0 means evidence of harm was found. Absence of evidence ≠ evidence of harm. State "data unavailable" in the relevant narrativeFields text.
 - overallScore is your holistic clinical judgment of how safe this product is for this user. Do NOT apply a fixed formula. A life-threatening allergen match justifies a very low overall score even if recalls and drug interactions are clean. Let the sub-scores explain the breakdown.
 - For productName: use the most accurate, human-readable name from the product data (brand + product name). Never output "Unknown product" — if unsure, use the brand or a best guess from ingredients/category.
 - Base your reasoning strictly on the DATA provided. If data is missing, say so inside JSON text fields — do not invent recall dates, lab values, or ingredients.
