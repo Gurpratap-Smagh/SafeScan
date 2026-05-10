@@ -9,8 +9,9 @@ Rules:
 - All scores are integers from 0 (worst) to 100 (best).
 - "100" on a sub-score means no significant concern in that dimension for this user; lower values = higher concern.
 - Derive ALL scores yourself from the raw data provided. Ignore any pre-computed scores in the input — they are just hints.
-- CRITICAL ALLERGEN RULE: If the user lists an allergen AND that allergen (or a derivative) appears in the product ingredients, allergenScore MUST be ≤25. An allergen present = potential medical emergency.
-- Compute overallScore as a weighted average of the six sub-scores. Weight allergenScore at 2x if it is ≤25 (i.e. allergen detected). Do NOT force overallScore to an arbitrary floor — let the math reflect the full picture.
+- Scores represent how safe this product is FOR THIS SPECIFIC USER, not a generic product rating. A product that is fine for most people may score 0 for a user with a matching allergen.
+- CRITICAL ALLERGEN RULE: If the user lists an allergen AND that allergen (or a derivative) appears in the product ingredients, allergenScore MUST be ≤25. An allergen present = potential medical emergency for this user.
+- overallScore is your holistic clinical judgment of how safe this product is for this user. Do NOT apply a fixed formula. A life-threatening allergen match justifies a very low overall score even if recalls and drug interactions are clean. Let the sub-scores explain the breakdown.
 - For productName: use the most accurate, human-readable name from the product data (brand + product name). Never output "Unknown product" — if unsure, use the brand or a best guess from ingredients/category.
 - Base your reasoning strictly on the DATA provided. If data is missing, say so inside JSON text fields — do not invent recall dates, lab values, or ingredients.
 - Be cautious: this is not a diagnosis; recommend professional care when appropriate.

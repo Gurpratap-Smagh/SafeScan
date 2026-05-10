@@ -564,6 +564,13 @@ export function SafetyReportView({ report }: { report: SafetyReport }) {
         <ScoreCircle score={score} />
       </div>
 
+      {/* Explain why overall is low when a single dimension dominates */}
+      {score < 50 && report.allergenScore != null && report.allergenScore <= 25 && (
+        <p className="mt-3 rounded-xl border border-[#ff5577]/20 bg-[#ff5577]/5 px-3 py-2 text-xs text-[#ff5577]/80">
+          ⚠ Overall score is low because a known allergen was detected — see sub-scores for the full breakdown.
+        </p>
+      )}
+
       {report.summary && (
         <p className="mt-4 rounded-2xl bg-black/30 p-4 text-sm leading-relaxed text-white/80">
           {report.summary}
