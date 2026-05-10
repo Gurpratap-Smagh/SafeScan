@@ -23,6 +23,7 @@ export async function GET(req: Request, { params }: { params: { reportId: string
 
     const report = await prisma.safetyReport.findUnique({
       where: { id: reportId },
+      include: { product: true },
     });
     if (!report) return notFound('report not found');
     if (report.userId !== caller.id) {
@@ -43,7 +44,8 @@ export async function GET(req: Request, { params }: { params: { reportId: string
       );
     }
 
-    const body = buildSafetyReportResponse(report, parsed);
-    return NextResponse.json(body);
+    const { product, ...reportWithoutProduct } = report;
+    const body = buildSafetyReportResponse(reportWithoutProduct as Parameters<typeof buildSafetyReportResponse>[0], parsed);
+    return NextResponse.json({ report: { ...body, product } });
   });
 }

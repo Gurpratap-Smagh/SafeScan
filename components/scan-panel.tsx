@@ -245,7 +245,10 @@ export function ScanPanel({ onReportReady }: ScannerProps) {
         if (r2.ok) {
           const j2 = await r2.json();
           const updated = (j2?.report ?? j2) as SafetyReport;
-          if (updated?.id) report = updated;
+          if (updated?.id) {
+            // Preserve product from original report if re-fetch didn't include it
+            report = { ...updated, product: updated.product ?? report.product };
+          }
         }
       } catch { /* AI is optional */ }
 
